@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharkType - Typing Speed Test</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/th/6/69/Gawr_Gura_-_Portrait_01.png">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="title">SharkType</div>
+            <div class="options">
+                <select class="option-item" id="time-selector">
+                    <option value="15">15s</option>
+                    <option value="30" selected>30s</option>
+                    <option value="60">60s</option>
+                    <option value="120">2min</option>
+                </select>
+                <select class="option-item" id="text-selector">
+                    <option value="words">Words</option>
+                    <option value="quotes">Quotes</option>
+                    <option value="code">Code</option>
+                </select>
+            </div>
+        </header>
+        
+        <div class="typing-area" id="typing-area">
+            <div class="words" id="words"></div>
+            <input type="text" id="typing-input" autofocus>
+            <div class="focus-message" id="focus-message">Click here to focus</div>
+        </div>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" id="wpm">0</div>
+                <div class="metric-label">wpm</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="accuracy">100%</div>
+                <div class="metric-label">accuracy</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="time">30s</div>
+                <div class="metric-label">time</div>
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <button class="btn restart-btn" id="restart-btn">restart</button>
+            <button class="btn" id="new-test-btn">new test</button>
+        </div>
+    </div>
+    <script src="script.Js"></script>
+</body>
+</html>
