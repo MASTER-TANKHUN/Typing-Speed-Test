@@ -131,7 +131,7 @@ header {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    color: #646669;
+    color: white;
     font-size: 14px;
     opacity: 0;
     transition: opacity 0.3s;
