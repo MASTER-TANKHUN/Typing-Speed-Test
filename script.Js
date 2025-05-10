@@ -44,6 +44,8 @@ let incorrectChars = 0;
 let testActive = false;
 let testFinished = false;
 let currentInput = '';
+let lastCursorPosition = { left: 0, top: 0 };
+let caretAnimationTimeout;
 
 function init() {
     totalTestTime = parseInt(timeSelector.value);
@@ -62,13 +64,28 @@ function init() {
     testActive = false;
     testFinished = false;
     currentInput = '';
+    lastCursorPosition = { left: 0, top: 0 };
 
     clearInterval(timerInterval);
+    clearTimeout(caretAnimationTimeout);
 
     generateTest();
 
     typingInput.value = '';
     typingInput.focus();
+    
+    // Initial smooth fade-in for words
+    const allWords = document.querySelectorAll('.word');
+    allWords.forEach((word, index) => {
+        word.style.opacity = '0';
+        word.style.transform = 'translateY(10px)';
+        
+        setTimeout(() => {
+            word.style.transition = 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            word.style.opacity = index === 0 ? '1' : '0.5';
+            word.style.transform = 'translateY(0)';
+        }, 50 + index * 20);
+    });
 }
 
 function generateTest() {
@@ -98,41 +115,53 @@ function generateTest() {
 
 function addCursorToCurrentLetter() {
     const existingCursor = document.querySelector('.cursor');
-    if (existingCursor) existingCursor.remove();
-
     const existingCurrentLetter = document.querySelector('.current-letter');
+    
     if (existingCurrentLetter) existingCurrentLetter.classList.remove('current-letter');
-
+    
     const activeWord = document.querySelector('.word.active');
     if (!activeWord) return;
 
     const currentLetter = activeWord.children[letterIndex];
+    let newLeft, newTop;
+    
     if (currentLetter) {
         currentLetter.classList.add('current-letter');
-
-        const cursor = document.createElement('div');
-        cursor.className = 'cursor';
 
         const letterRect = currentLetter.getBoundingClientRect();
         const wordsRect = wordsElement.getBoundingClientRect();
         
-        cursor.style.left = `${letterRect.left - wordsRect.left - 2}px`;
-        cursor.style.top = `${letterRect.top - wordsRect.top}px`;
-        
-        wordsElement.appendChild(cursor);
+        newLeft = letterRect.left - wordsRect.left - 2;
+        newTop = letterRect.top - wordsRect.top;
     } else if (activeWord) {
-        const cursor = document.createElement('div');
-        cursor.className = 'cursor';
-
         const lastLetter = activeWord.lastChild;
         const letterRect = lastLetter.getBoundingClientRect();
         const wordsRect = wordsElement.getBoundingClientRect();
         
-        cursor.style.left = `${letterRect.right - wordsRect.left + 2}px`;
-        cursor.style.top = `${letterRect.top - wordsRect.top}px`;
+        newLeft = letterRect.right - wordsRect.left + 2;
+        newTop = letterRect.top - wordsRect.top;
+    } else {
+        return;
+    }
+    
+    if (existingCursor) {
+        // Animate cursor movement
+        existingCursor.style.left = `${newLeft}px`;
+        existingCursor.style.top = `${newTop}px`;
         
+        // Add a quick flash animation
+        existingCursor.classList.remove('caret-animation');
+        void existingCursor.offsetWidth;
+        existingCursor.classList.add('caret-animation');
+    } else {
+        const cursor = document.createElement('div');
+        cursor.className = 'cursor';
+        cursor.style.left = `${newLeft}px`;
+        cursor.style.top = `${newTop}px`;
         wordsElement.appendChild(cursor);
     }
+    
+    lastCursorPosition = { left: newLeft, top: newTop };
 }
 
 function startTest() {
@@ -160,7 +189,11 @@ function updateWPM() {
     const timeElapsed = (new Date() - startTime) / 60000;
     const wpm = Math.round(correctChars / 5 / timeElapsed);
     
-    wpmElement.textContent = wpm;
+    const oldWpm = parseInt(wpmElement.textContent);
+    if (wpm !== oldWpm) {
+        wpmElement.textContent = wpm;
+        smoothlyAnimateMetric(wpmElement);
+    }
 }
 
 function finishTest() {
@@ -178,6 +211,9 @@ function finishTest() {
     wpmElement.textContent = wpm;
     accuracyElement.textContent = `${accuracy}%`;
     timeElement.textContent = '0s';
+    
+    smoothlyAnimateMetric(wpmElement);
+    smoothlyAnimateMetric(accuracyElement);
 
     const activeWord = document.querySelector('.word.active');
     if (activeWord) activeWord.classList.remove('active');
@@ -186,7 +222,19 @@ function finishTest() {
     if (currentLetter) currentLetter.classList.remove('current-letter');
     
     const cursor = document.querySelector('.cursor');
-    if (cursor) cursor.remove();
+    if (cursor) {
+        cursor.style.animation = 'none';
+        setTimeout(() => cursor.remove(), 300);
+    }
+    
+    // Smooth fade-out for all words
+    const allWords = document.querySelectorAll('.word');
+    allWords.forEach((word, index) => {
+        setTimeout(() => {
+            word.style.opacity = '0.3';
+            word.style.transform = 'translateY(5px)';
+        }, 50 + index * 10);
+    });
 }
 
 function formatTime(seconds) {
@@ -197,6 +245,19 @@ function formatTime(seconds) {
     } else {
         return `${seconds}s`;
     }
+}
+
+function smoothlyAnimateMetric(element) {
+    element.classList.remove('updated');
+    void element.offsetWidth;
+    element.classList.add('updated');
+}
+
+function smoothLetterAnimation(letterElement) {
+    if (!letterElement) return;
+    letterElement.classList.remove('typed-letter');
+    void letterElement.offsetWidth;
+    letterElement.classList.add('typed-letter');
 }
 
 function handleInput(e) {
@@ -224,9 +285,10 @@ function handleInput(e) {
             if (activeWord && letterIndex < activeWord.children.length) {
                 const currentLetter = activeWord.children[letterIndex];
                 currentLetter.classList.remove('correct', 'incorrect');
+                currentLetter.style.transition = 'all 0.12s cubic-bezier(0.25, 0.1, 0.25, 1)';
             }
             
-            updateWordDisplay();
+            addCursorToCurrentLetter();
         }
         return;
     }
@@ -251,15 +313,23 @@ function handleInput(e) {
             currentLetter.classList.add('incorrect');
             incorrectChars++;
         }
+        
+        smoothLetterAnimation(currentLetter);
     } else {
         incorrectChars++;
     }
 
     letterIndex++;
-    updateWordDisplay();
+    addCursorToCurrentLetter();
+    
     const accuracy = Math.round((correctChars / (correctChars + incorrectChars)) * 100);
-    accuracyElement.textContent = `${accuracy}%`;
+    const oldAccuracy = parseInt(accuracyElement.textContent);
+    if (accuracy !== oldAccuracy) {
+        accuracyElement.textContent = `${accuracy}%`;
+        smoothlyAnimateMetric(accuracyElement);
+    }
 }
+
 function checkWord() {
     const activeWord = document.querySelector('.word.active');
     if (!activeWord) return;
@@ -267,28 +337,42 @@ function checkWord() {
     const wordText = [...activeWord.children].map(letter => letter.textContent).join('');
     
     if (currentInput === wordText) {
-        activeWord.classList.add('correct');
+        activeWord.classList.add('correct', 'word-complete');
         correctWords++;
     } else {
-        activeWord.classList.add('incorrect');
+        activeWord.classList.add('incorrect', 'word-complete');
     }
+    
+    // Remove animation class after completion
+    setTimeout(() => {
+        activeWord.classList.remove('word-complete');
+    }, 300);
 }
+
 function moveToNextWord() {
     const activeWord = document.querySelector('.word.active');
     if (!activeWord) return;
+    
+    // Smooth transition for completed word
+    activeWord.style.transition = 'all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1)';
+    activeWord.style.opacity = '0.8';
     activeWord.classList.remove('active');
+    
     const nextWord = activeWord.nextElementSibling;
     if (nextWord) {
-        nextWord.classList.add('active');
-        letterIndex = 0;
-        addCursorToCurrentLetter();
+        // Prepare next word transition
+        nextWord.style.transition = 'all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1)';
+        
+        // Slightly delay the activation for smooth transition
+        setTimeout(() => {
+            nextWord.classList.add('active');
+            nextWord.style.opacity = '1';
+            letterIndex = 0;
+            addCursorToCurrentLetter();
+        }, 20);
     } else {
         finishTest();
     }
-}
-
-function updateWordDisplay() {
-    addCursorToCurrentLetter();
 }
 
 function handleFocus() {
